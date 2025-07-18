@@ -8,6 +8,11 @@ from keras.models import load_model
 from werkzeug.utils import secure_filename
 from io import BytesIO
 import zipfile
+from flask import Flask, request, send_file, jsonify, render_template_string
+import io
+import numpy as np
+import cv2
+import tensorflow as tf
 
 app = Flask(__name__)
 
@@ -84,17 +89,68 @@ def predict():
         return jsonify({'error': 'Unsupported file format'}), 400
 
 
-@app.route('/')
+@app.route("/", methods=["GET"])
 def index():
-    return '''
-    <!doctype html>
-    <title>Upload NIfTI File</title>
-    <h1>Upload .nii or .nii.gz file for segmentation</h1>
-    <form action="/predict" method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Liver Segmentation API</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; background: #f9f9f9; }
+            h1 { color: #3c4f76; }
+            code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+            pre { background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto; }
+            .endpoint { color: #333; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <h1>🧠 Liver Segmentation API</h1>
+        <p>Bu API, karaciğer MR görüntüsünden bir <strong>slice (PNG dosyası)</strong> alır ve segmentasyon sonucunu döner.</p>
+        
+        <h2>🔗 API Adresi</h2>
+        <p class="endpoint">POST <code>https://mr-api-mqfu.onrender.com/predict</code></p>
+
+        <h2>📤 Girdi</h2>
+        <ul>
+            <li><code>multipart/form-data</code> formatında bir PNG dosyası</li>
+            <li>Form alan adı: <code>file</code></li>
+        </ul>
+
+        <h2>🧪 Örnek curl</h2>
+        <pre><code>curl -X POST https://mr-api-mqfu.onrender.com/predict -F "file=@slice.png"</code></pre>
+
+        <h2>🧪 Frontend JavaScript örneği</h2>
+        <pre><code>
+const formData = new FormData();
+formData.append("file", selectedFile);
+fetch("https://mr-api-mqfu.onrender.com/predict", {
+    method: "POST",
+    body: formData
+})
+.then(response => response.blob())
+.then(blob => {
+    const imgUrl = URL.createObjectURL(blob);
+    document.getElementById("result").src = imgUrl;
+});
+        </code></pre>
+
+        <h2>📥 Yanıt</h2>
+        <p>Segmentasyon sonucu bir <code>image/png</code> dosyası olarak döner.</p>
+
+        <h2>⚠️ Hatalar</h2>
+        <ul>
+            <li><code>Unsupported file format</code> – PNG dışı dosya yüklendi</li>
+            <li><code>File missing</code> – <code>file</code> alanı eksik</li>
+            <li><code>Prediction failed</code> – Model hata verdi</li>
+        </ul>
+
+        <h2>👨‍💻 Geliştirici</h2>
+        <p><strong>Ahmet Ağan</strong> – Yapay zeka & entegrasyon</p>
+    </body>
+    </html>
+    """)
+
 
 if __name__ == "__main__":
     import os
